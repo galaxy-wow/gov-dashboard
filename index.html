@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>城市适老化改造数据大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { background-color: #0F172A; color: white; font-family: sans-serif; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .card { background-color: #1E293B; border-radius: 12px; padding: 20px; flex: 1; }
+        #chart { width: 100%; height: 400px; }
+    </style>
+</head>
+<body>
+
+    <h2>🏛️ 城市适老化监控大屏 (已脱敏)</h2>
+    
+    <div class="container">
+        <div class="card">
+            <h3>老人出行时段分布</h3>
+            <div id="chart"></div>
+        </div>
+        <div class="card">
+            <h3>数据面板状态</h3>
+            <p id="status">正在从云端拉取聚合数据...</p>
+            <p id="total">总采集样本：0</p>
+        </div>
+    </div>
+
+    <script>
+        // 替换为你在 Bmob 后台查到的密钥
+        const APP_ID = "你的_Application_ID";
+        const REST_API_KEY = "你的_REST_API_Key";
+        const CLOUD_FUNCTION_NAME = "getCityAgedData";
+
+        // 调用 Bmob 云函数
+        function fetchAgedData() {
+            fetch(`https://api.bmobcloud.com/1/functions/${CLOUD_FUNCTION_NAME}`, {
+                method: 'POST',
+                headers: {
+                    'X-Bmob-Application-Id': APP_ID,
+                    'X-Bmob-REST-API-Key': REST_API_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({}) // 如果需要传参数给云函数，可以写在这里
+            })
+            .then(response => response.json())
+            .then(res => {
+                // Bmob 返回的结果在 res.result 中（因为云函数 response.send 了一层）
+                const serverData = res.result; 
+                
+                if(serverData.code === 200) {
+                    document.getElementById('status').innerText = "✅ 数据拉取成功 (已脱敏)";
+                    document.getElementById('total').innerText = "总采集样本：" + serverData.data.totalRecords;
+                    
+                    // 渲染图表
+                    renderChart(serverData.data.timeDistribution);
+                    
+                    // TODO: 你可以使用 serverData.data.heatmapPoints 结合高德地图/百度地图 JS API 渲染热力图
+                    console.log("热力图坐标点数组：", serverData.data.heatmapPoints);
+                } else {
+                    document.getElementById('status').innerText = "❌ 报错：" + serverData.msg;
+                }
+            })
+            .catch(error => {
+                document.getElementById('status').innerText = "❌ 网络请求失败";
+                console.error(error);
+            });
+        }
+
+        // 使用 ECharts 渲染饼图
+        function renderChart(timeData) {
+            const myChart = echarts.init(document.getElementById('chart'));
+            myChart.setOption({
+                tooltip: { trigger: 'item' },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: [
+                        { value: timeData.morning, name: '早晨 (6-12点)' },
+                        { value: timeData.afternoon, name: '下午 (12-18点)' },
+                        { value: timeData.evening, name: '夜间 (18点后)' }
+                    ],
+                    label: { color: 'white', fontSize: 14 }
+                }]
+            });
+        }
+
+        // 页面加载时请求数据
+        fetchAgedData();
+    </script>
+</body>
+</html>
