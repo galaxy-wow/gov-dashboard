@@ -51,15 +51,9 @@
             </div>
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-                <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        <h3 class="text-lg font-bold text-gray-800">AI 智能分析报告</h3>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="exportDoc('PDF')" class="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded border border-gray-200 hover:bg-gray-100 transition">导出 PDF</button>
-                        <button onclick="exportDoc('Word')" class="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded border border-gray-200 hover:bg-gray-100 transition">导出 Word</button>
-                    </div>
+                <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h3 class="text-lg font-bold text-gray-800">AI 智能分析报告</h3>
                 </div>
                 
                 <div class="flex-grow bg-gray-50 rounded-lg p-5 text-sm text-gray-600 leading-relaxed overflow-y-auto" id="llmReportContent">
@@ -125,7 +119,7 @@
                     cachedTimeData = serverData.data.timeDistribution;
                     renderChart();
 
-                    // 数据拉取成功后，触发云端 AI 报告生成
+                    // 数据拉取成功后，触发流式 AI 报告生成
                     generateLLMReport(cachedTimeData, serverData.data.totalRecords);
                 } else {
                     handleDbError(serverData.msg || "未知业务错误");
@@ -189,7 +183,7 @@
             renderChart();
         }
 
-        // --- 5. 请求 Bmob 云端大模型生成报告 ---
+        // --- 5. 纯前端流式请求豆包大模型生成报告 ---
         async function generateLLMReport(timeData, total) {
             const reportContainer = document.getElementById('llmReportContent');
             const dateStr = new Date().toLocaleDateString('zh-CN');
@@ -206,24 +200,24 @@
                     </div>
                 </div>
                 <div id="ai-typing-area" class="space-y-3 text-gray-700 text-sm leading-relaxed pb-4">
-                    <span class="text-gray-400 animate-pulse">正在唤醒火山引擎豆包大模型...</span>
+                    <span class="text-gray-400 animate-pulse">正在生成报告中...</span>
                 </div>
             `;
 
             const typingArea = document.getElementById('ai-typing-area');
 
-            // 2. 构造 500 字深度分析的 Prompt
+            
             const prompt = `你是一个政府“智慧适老化监管平台”的专业 AI 数据分析师。
 请根据以下数据生成深度分析报告：
 - 监控区域总样本量：${total}人次
 - 早晨：${timeData.morning}人次，下午：${timeData.afternoon}人次，夜间：${timeData.evening}人次。
 要求：
-1. 字数在 500 字左右。
+1. 字数在 200 字左右。
 2. 语气必须极其客观、严谨，符合政务公文风格。
 3. 必须包含三块：【数据基准特征总结】、【异常或安全隐患剖析】、【针对性的网格化干预建议】。
 4. 直接使用 HTML 标签（如 <h3>, <p>, <strong>, <ul>, <li>）进行排版，绝对不要输出 Markdown 的 \`\`\`html 代码块符号。`;
 
-            
+            // ⚠️ 必填项：填入你的火山引擎 API Key 和 接入点
             const LLM_API_KEY = "4cea9432-264f-49bf-9381-53339fec28a9";
             const LLM_ENDPOINT_ID = "doubao-seed-2-0-lite-260215";
 
@@ -243,13 +237,13 @@
                         ],
                         temperature: 0.3,
                         max_tokens: 1000,
-                        stream: true // 开启流式输出的核心开关
+                        stream: true
                     })
                 });
 
                 if (!response.ok) throw new Error(`HTTP Error! 状态码: ${response.status}`);
 
-                // 4. 解析流式数据 (SSE 格式)
+                // 4. 解析流式数据
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let fullText = "";
@@ -259,7 +253,6 @@
                     if (done) break;
                     
                     const chunk = decoder.decode(value, { stream: true });
-                    // SSE 数据通常按行分割
                     const lines = chunk.split('\n');
                     
                     for (const line of lines) {
@@ -269,22 +262,20 @@
                                 if (data.choices && data.choices[0].delta.content) {
                                     fullText += data.choices[0].delta.content;
                                     
-                                    // 实时清洗数据并渲染到页面，尾部追加一个闪烁的光标效果
                                     let cleanHTML = fullText.replace(/```html/gi, '').replace(/```/g, '');
                                     typingArea.innerHTML = cleanHTML + '<span class="inline-block w-1.5 h-4 ml-1 bg-blue-600 animate-pulse align-middle"></span>';
                                     
-                                    // 让滚动条始终保持在最底部
                                     const scrollContainer = document.getElementById('llmReportContent');
                                     scrollContainer.scrollTop = scrollContainer.scrollHeight;
                                 }
                             } catch (e) {
-                                // 忽略不完整的 JSON 解析错误，流式截断是正常现象
+                                // 忽略不完整的 JSON 解析错误
                             }
                         }
                     }
                 }
                 
-                // 5. 生成结束，移除光标，追加免责声明
+                // 5. 生成结束，移除光标
                 let finalHTML = fullText.replace(/```html/gi, '').replace(/```/g, '');
                 typingArea.innerHTML = finalHTML + `
                     <p class="mt-8 text-xs text-gray-400 border-t border-gray-200 pt-3">
@@ -308,16 +299,6 @@
             document.getElementById('dbStatus').innerText = "❌ 报错：" + errMsg;
             document.getElementById('dbStatus').className = "text-xs text-red-500 mt-1";
             document.getElementById('llmReportContent').innerHTML = `<div class="text-red-500 flex justify-center items-center h-full">无法连接底层数据源，分析报告生成中止。</div>`;
-        }
-
-        // --- 6. 导出文档逻辑 (占位) ---
-        function exportDoc(type) {
-            const reportContent = document.getElementById('llmReportContent').innerText;
-            if (reportContent.includes('等待数据源') || reportContent.includes('正在深度分析')) {
-                alert('数据尚未分析完毕，请稍后再试。');
-                return;
-            }
-            alert(`系统提示：正在整理数据，准备下载 ${type} 格式报告...\n(此为前端交互模拟)`);
         }
 
         // 响应式图表自适应
