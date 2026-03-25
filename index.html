@@ -33,40 +33,57 @@
         const REST_API_KEY = "751a308e7cb38b1d910557bceaf5234c";
         const CLOUD_FUNCTION_NAME = "getCityAgedData";
 
+        
         // 调用 Bmob 云函数
-        function fetchAgedData() {
-            fetch(`https://api.bmobcloud.com/1/functions/${CLOUD_FUNCTION_NAME}`, {
-                method: 'POST',
-                headers: {
-                    'X-Bmob-Application-Id': APP_ID,
-                    'X-Bmob-REST-API-Key': REST_API_KEY,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({}) // 如果需要传参数给云函数，可以写在这里
-            })
-            .then(response => response.json())
-            .then(res => {
-                // Bmob 返回的结果在 res.result 中（因为云函数 response.send 了一层）
-                const serverData = res.result; 
-                
-                if(serverData.code === 200) {
-                    document.getElementById('status').innerText = "✅ 数据拉取成功 (已脱敏)";
-                    document.getElementById('total').innerText = "总采集样本：" + serverData.data.totalRecords;
-                    
-                    // 渲染图表
-                    renderChart(serverData.data.timeDistribution);
-                    
-                    // TODO: 你可以使用 serverData.data.heatmapPoints 结合高德地图/百度地图 JS API 渲染热力图
-                    console.log("热力图坐标点数组：", serverData.data.heatmapPoints);
-                } else {
-                    document.getElementById('status').innerText = "❌ 报错：" + serverData.msg;
-                }
-            })
-            .catch(error => {
-                document.getElementById('status').innerText = "❌ 网络请求失败";
-                console.error(error);
-            });
+    function fetchAgedData() {
+    fetch(`https://api.bmobcloud.com/1/functions/${CLOUD_FUNCTION_NAME}`, {
+        method: 'POST',
+        headers: {
+            'X-Bmob-Application-Id': APP_ID,
+            'X-Bmob-REST-API-Key': REST_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({}) //
+    })
+    .then(response => {
+        // 【新增】拦截 HTTP 级别的错误 (例如 404, 500)
+        if (!response.ok) {
+            throw new Error(`HTTP Error! status: ${response.status}`);
         }
+        return response.json(); //
+    })
+    .then(res => {
+        // Bmob 返回的结果在 res.result 中
+        let serverData = res.result; 
+        
+        // 【新增】防呆处理：如果 Bmob 把 result 作为字符串返回，我们需要手动转成对象
+        if (typeof serverData === 'string') {
+            try {
+                serverData = JSON.parse(serverData);
+            } catch (e) {
+                console.error("解析 Bmob 字符串返回结果失败", e);
+            }
+        }
+        
+        if(serverData && serverData.code === 200) { //
+            document.getElementById('status').innerText = "✅ 数据拉取成功 (已脱敏)"; //
+            document.getElementById('total').innerText = "总采集样本：" + serverData.data.totalRecords; //
+            
+            // 渲染图表
+            renderChart(serverData.data.timeDistribution); //
+            
+            // TODO: 你可以使用 serverData.data.heatmapPoints 结合地图 API 渲染热力图
+            console.log("热力图坐标点数组：", serverData.data.heatmapPoints); //
+        } else {
+            // 处理云函数抛出的业务错误
+            document.getElementById('status').innerText = "❌ 报错：" + (serverData.msg || "未知业务错误"); //
+        }
+    })
+    .catch(error => {
+        document.getElementById('status').innerText = "❌ 网络请求失败或跨域拦截"; //
+        console.error("Fetch Error:", error); //
+    });
+}
 
         // 使用 ECharts 渲染饼图
         function renderChart(timeData) {
