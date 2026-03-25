@@ -64,7 +64,7 @@
                         
                         <button onclick="triggerReportGeneration()" id="btnGenerateReport" disabled 
                                 class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-md disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2">
-                            <span>✨</span> 生成意见反馈报告
+                            <span>✨</span> 点击生成意见反馈报告
                         </button>
                     </div>
                 </div>
@@ -225,7 +225,7 @@
                     </div>
                 </div>
                 <div id="ai-typing-area" class="space-y-3 text-gray-700 text-sm leading-relaxed pb-4">
-                    <span class="text-gray-400 animate-pulse">正在唤醒火山引擎豆包大模型...</span>
+                    <span class="text-gray-400 animate-pulse">正在生成报告...</span>
                 </div>
             `;
 
@@ -236,7 +236,7 @@
 - 监控区域总样本量：${total}人次
 - 早晨：${timeData.morning}人次，下午：${timeData.afternoon}人次，夜间：${timeData.evening}人次。
 要求：
-1. 字数在 500 字左右。
+1. 字数在 200 字左右。
 2. 语气必须极其客观、严谨，符合政务公文风格。
 3. 必须包含三块：【数据基准特征总结】、【异常或安全隐患剖析】、【针对性的网格化干预建议】。
 4. 直接使用 HTML 标签（如 <h3>, <p>, <strong>, <ul>, <li>）进行排版，绝对不要输出 Markdown 的 \`\`\`html 代码块符号。`;
